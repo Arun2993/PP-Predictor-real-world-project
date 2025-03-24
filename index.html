@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGS PP Predictor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #4A90E2, #50C9C3);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 10px;
+            text-align: left;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        button {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #e68900;
+        }
+        h3 {
+            margin-top: 15px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+    <script>
+        function calculateBypassValues() {
+            let pantone = parseInt(document.getElementById("pantone").value) || 0;
+            let totalColors = parseInt(document.getElementById("total_colors").value) || 0;
+            let white = parseInt(document.getElementById("white").value) || 0;
+            let varnish = parseInt(document.getElementById("varnish").value) || 0;
+            let digitalOther = parseInt(document.getElementById("digital").value);
+
+            let minTotalColors = pantone + white + varnish;
+            if (totalColors < minTotalColors) {
+                totalColors = minTotalColors;
+                document.getElementById("total_colors").value = minTotalColors;
+            }
+
+            // Updated logic for "Eligible to Bypass Auto Trap"
+            let eligibleToBypassAutoTrap = digitalOther;
+
+            let colorEligibleToBypass = (totalColors <= 2) ? 1 : 0;
+
+            document.getElementById("auto_trap").value = eligibleToBypassAutoTrap;
+            document.getElementById("color_bypass").value = colorEligibleToBypass;
+        }
+
+        async function getPrediction() {
+            calculateBypassValues();
+
+            const inputData = {
+                Pantone_Colors_Count: parseInt(document.getElementById("pantone").value),
+                Total_Colors_Found: parseInt(document.getElementById("total_colors").value),
+                White_Count: parseInt(document.getElementById("white").value),
+                Varnish_Count: parseInt(document.getElementById("varnish").value),
+                Digital_or_Other: parseInt(document.getElementById("digital").value),
+                Instructions_Extracted: document.getElementById("instructions").value,
+                Eligible_to_Bypass_Auto_Trap: parseInt(document.getElementById("auto_trap").value),
+                Color_Eligible_to_Bypass: parseInt(document.getElementById("color_bypass").value),
+            };
+
+            try {
+                const response = await fetch("http://127.0.0.1:8000/predict/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(inputData)
+                });
+
+                const result = await response.json();
+                const predictionText = result.Eligible_to_Bypass_PP === 1 ? "Eligible to Bypass PP" : "Not Eligible to Bypass PP";
+                document.getElementById("result").innerText = "Prediction: " + predictionText;
+            } catch (error) {
+                console.error("Error:", error);
+                document.getElementById("result").innerText = "Error fetching prediction!";
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            document.getElementById("pantone").addEventListener("input", calculateBypassValues);
+            document.getElementById("total_colors").addEventListener("input", calculateBypassValues);
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h2>SGS PP Predictor</h2>
+
+        <label>Pantone Colors Count:</label>
+        <input type="number" id="pantone" value="0" min="0">
+
+        <label>White Count:</label>
+        <input type="number" id="white" value="0" min="0">
+
+        <label>Varnish Count:</label>
+        <input type="number" id="varnish" value="0" min="0">
+
+        <label>Total Colors Found:</label>
+        <input type="number" id="total_colors" value="0" min="0">
+
+        <label>Digital or Other:</label>
+        <select id="digital">
+            <option value="1">Digital</option>
+            <option value="0">Other</option>
+        </select>
+
+        <label>Instructions Extracted:</label>
+        <input type="text" id="instructions" value="">
+
+        <label>Eligible to Bypass Auto Trap:</label>
+        <input type="number" id="auto_trap" readonly>
+
+        <label>Color Eligible to Bypass:</label>
+        <input type="number" id="color_bypass" readonly>
+
+        <button onclick="getPrediction()">Predict</button>
+
+        <h3 id="result"></h3>
+    </div>
+</body>
+</html>
